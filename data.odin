@@ -27,7 +27,7 @@ ZOOM: f32 = f32(WINDOW_SIZE.x) / f32(CANVAS_SIZE.x)
 
 FONT_SIZE :: i32(MAP_SIZE.x)
 
-TICK_TIME: f32 = 0.17
+TICK_TIME: f32 = 0.33
 tick_timer: f32 = TICK_TIME
 
 SNAKE_MAX_SIZE :: int(MAP_SIZE.x * MAP_SIZE.y)
@@ -41,3 +41,5 @@ state := GameState.PLAYING
 draw_grid: bool = false
 
 food_pos: Vector2i
+
+

@@ -1,9 +1,8 @@
 package snake
 
-import "core:fmt"
-import "core:math"
 import rl "vendor:raylib"
-
+import "core:math"
+import "core:fmt"
 
 main :: proc() {
 	rl.InitWindow(i32(WINDOW_SIZE.x), i32(WINDOW_SIZE.y), "snakessss")
@@ -37,6 +36,10 @@ main :: proc() {
 			camera := rl.Camera2D {
 				zoom = ZOOM,
 			}
+
+
+			if shaking do shake_camera(&camera)
+			
 			rl.BeginMode2D(camera)
 
 			ground: {
@@ -78,14 +81,19 @@ main :: proc() {
 				for i in 0 ..< snake_length {
 					texture: rl.Texture2D
 					texture_direction: Vector2i
+					offset_in_direction: f32 = tick_timer / TICK_TIME * f32(CELL_SIZE)
+					if state != .PLAYING do offset_in_direction = 0
+					is_corner: bool
 					if i == 0 {
 						// head
 						texture_direction = snake_parts[0] - snake_parts[1]
 						texture = head_texture
+						offset_in_direction *= -1
 					} else if i == snake_length - 1 {
 						//tail
 						texture_direction = snake_parts[i - 1] - snake_parts[i]
 						texture = tail_texture
+						offset_in_direction *= -1
 					} else {
 						// body
 						texture = body_texture
@@ -93,6 +101,8 @@ main :: proc() {
 						if texture_direction + snake_parts[i] !=
 						   snake_parts[i + 1] {
 							// corner
+							is_corner = true
+							offset_in_direction = 0
 							texture = corner_texture
 							dir_1 := snake_parts[i - 1] - snake_parts[i]
 							dir_2 := snake_parts[i + 1] - snake_parts[i]
@@ -114,6 +124,40 @@ main :: proc() {
 						}
 					}
 
+					if is_corner && state == .PLAYING{
+
+						last_texture_direction: Vector2i = snake_parts[i] - snake_parts[i+1]
+						
+						source := rl.Rectangle {
+							0,
+							0,
+							f32(CELL_SIZE),
+							f32(CELL_SIZE),
+						}
+						dest := rl.Rectangle {
+							f32(snake_parts[i+1].x * CELL_SIZE) +
+							f32(CELL_SIZE) / 2.0 + f32(last_texture_direction.x) *(1-tick_timer / TICK_TIME)  * f32(CELL_SIZE),
+							f32(snake_parts[i+1].y * CELL_SIZE) +
+							f32(CELL_SIZE) / 2.0 + f32(last_texture_direction.y) *(1-tick_timer / TICK_TIME)  * f32(CELL_SIZE),
+							f32(CELL_SIZE),
+							f32(CELL_SIZE),
+						}
+						rotation :=
+							math.DEG_PER_RAD *
+							math.atan2_f32(
+								f32(last_texture_direction.x),
+								f32(last_texture_direction.y),
+							) + 90
+						rl.DrawTexturePro(
+							body_texture,
+							source,
+							dest,
+							{f32(CELL_SIZE / 2.0), f32(CELL_SIZE / 2.0)},
+							rotation,
+							rl.WHITE,
+						)
+					}
+
 					// rl.DrawTexture(texture, i32(snake_parts[i].x * CELL_SIZE), i32(snake_parts[i].y * CELL_SIZE), rl.WHITE)
 					source := rl.Rectangle {
 						0,
@@ -123,9 +167,9 @@ main :: proc() {
 					}
 					dest := rl.Rectangle {
 						f32(snake_parts[i].x * CELL_SIZE) +
-						f32(CELL_SIZE) / 2.0,
+						f32(CELL_SIZE) / 2.0 + f32(texture_direction.x) * offset_in_direction,
 						f32(snake_parts[i].y * CELL_SIZE) +
-						f32(CELL_SIZE) / 2.0,
+						f32(CELL_SIZE) / 2.0 + f32(texture_direction.y) * offset_in_direction,
 						f32(CELL_SIZE),
 						f32(CELL_SIZE),
 					}
@@ -251,7 +295,6 @@ restart :: proc() {
 		snake_parts[2] = snake_parts[1] - {1, 0}
 		snake_length = 3
 	}
-
 	state = .PLAYING
 }
 
@@ -280,6 +323,7 @@ on_tick :: proc() {
 	end_game := proc() {
 		rl.PlaySound(crash_sound)
 		state = .LOSE
+		shaking = true
 	}
 
 	checking_is_game_over: {
